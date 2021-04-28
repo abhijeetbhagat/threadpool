@@ -7,6 +7,13 @@ name = "blocking_queue"
 version = "0.1.0"
 
 [[package]]
+name = "tests"
+version = "0.1.0"
+dependencies = [
+ "threadpool",
+]
+
+[[package]]
 name = "threadpool"
 version = "0.1.0"
 dependencies = [
