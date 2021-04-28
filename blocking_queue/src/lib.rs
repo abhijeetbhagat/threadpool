@@ -1,9 +1,11 @@
 use std::collections::VecDeque;
-use std::sync::{Condvar, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
 
 pub struct BlockingQueue<T> {
     queue: Mutex<VecDeque<T>>,
     condvar: Condvar,
+    should_quit: Arc<AtomicBool>,
 }
 
 impl<T> BlockingQueue<T> {
@@ -11,6 +13,7 @@ impl<T> BlockingQueue<T> {
         Self {
             queue: Mutex::new(VecDeque::new()),
             condvar: Condvar::new(),
+            should_quit: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -21,10 +24,21 @@ impl<T> BlockingQueue<T> {
     }
 
     pub fn deq(&self) -> Option<T> {
-        let mut vec = self.queue.lock().unwrap();
-        while vec.len() < 1 {
-            vec = self.condvar.wait(vec).unwrap();
+        let mut vec = self
+            .condvar
+            .wait_while(self.queue.lock().unwrap(), |vec| {
+                vec.len() < 0 && !self.should_quit.load(Ordering::Relaxed)
+            })
+            .unwrap();
+
+        if self.should_quit.load(Ordering::Relaxed) {
+            return None;
         }
+
         vec.pop_front()
+    }
+
+    pub fn quit(&self) {
+        self.should_quit.store(true, Ordering::Relaxed);
     }
 }

@@ -24,8 +24,10 @@ impl ThreadPool {
 
                     while !should_quit.load(Ordering::Relaxed) {
                         println!("{:?}: waiting ...", std::thread::current().id());
-                        let task = bq.deq().unwrap();
-                        task();
+                        match bq.deq() {
+                            Some(t) => t(),
+                            _ => return,
+                        }
                     }
                 })
             })
@@ -46,6 +48,7 @@ impl ThreadPool {
     }
 
     pub fn shutdown(mut self) {
+        self.bq.quit();
         self.should_quit.store(true, Ordering::Relaxed);
         let _: Vec<()> = self
             .handles

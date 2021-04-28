@@ -1,3 +1,5 @@
+use std::thread;
+use std::time::Duration;
 use threadpool::ThreadPool;
 
 fn main() {
@@ -8,5 +10,8 @@ fn main() {
     tp.execute(|| {
         println!("{:?}: task 2: Hello!", std::thread::current().id());
     });
+
+    thread::sleep(Duration::from_secs(2));
+
     tp.shutdown();
 }
