@@ -1,11 +1,11 @@
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, RwLock};
 
 pub struct BlockingQueue<T> {
     queue: Mutex<VecDeque<T>>,
     condvar: Condvar,
-    should_quit: Arc<AtomicBool>,
+    should_quit: Arc<RwLock<bool>>,
 }
 
 impl<T> BlockingQueue<T> {
@@ -13,7 +13,7 @@ impl<T> BlockingQueue<T> {
         Self {
             queue: Mutex::new(VecDeque::new()),
             condvar: Condvar::new(),
-            should_quit: Arc::new(AtomicBool::new(false)),
+            should_quit: Arc::new(RwLock::new(false)),
         }
     }
 
@@ -27,11 +27,13 @@ impl<T> BlockingQueue<T> {
         let mut vec = self
             .condvar
             .wait_while(self.queue.lock().unwrap(), |vec| {
-                vec.len() < 0 && !self.should_quit.load(Ordering::Relaxed)
+                println!("{:?}: checking cond ...", std::thread::current().id());
+                vec.is_empty() && !*self.should_quit.read().unwrap()
             })
             .unwrap();
 
-        if self.should_quit.load(Ordering::Relaxed) {
+        if *self.should_quit.read().unwrap() {
+            println!("bq is now shutting down");
             return None;
         }
 
@@ -39,6 +41,8 @@ impl<T> BlockingQueue<T> {
     }
 
     pub fn quit(&self) {
-        self.should_quit.store(true, Ordering::Relaxed);
+        let mut flag = self.should_quit.write().unwrap();
+        *flag = true;
+        self.condvar.notify_all();
     }
 }

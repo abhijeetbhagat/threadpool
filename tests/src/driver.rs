@@ -13,5 +13,6 @@ fn main() {
 
     thread::sleep(Duration::from_secs(2));
 
+    println!("shutting down pool");
     tp.shutdown();
 }
